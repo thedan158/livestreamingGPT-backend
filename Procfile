@@ -1,0 +1,1 @@
+web:env-cmd -f ./config/dev.env nodemon --experimental-json-modules src/index.js
