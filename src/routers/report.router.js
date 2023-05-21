@@ -25,4 +25,5 @@ router.get(
 );
 router.get('/getAllService/:username', ReportController.getAllService)
 router.post('/requestAI', ReportController.requestAI)
+router.post('/savePreset', ReportController.savePreset)
 export default router;

@@ -21,6 +21,7 @@ out/
 # Gradle files
 .gradle/
 build/
+config/
 
 # Local configuration file (sdk path, etc)
 local.properties
@@ -92,5 +93,6 @@ lint/tmp/
 
 node_modules/
 /yarn.lock
+*.env
 # config/
 # *.json

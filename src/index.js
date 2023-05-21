@@ -6,7 +6,7 @@ import swaggerUI from "swagger-ui-express";
 import { specs } from "./utils/docs.js";
 import http, { get } from "http";
 import admin from "firebase-admin";
-import serviceAccount from "./serviceAccountKey.json" ;
+import serviceAccount from "./serviceAccountKey.json" assert { type: "json" };
 
 //#region initialize server and database
 const app = express();

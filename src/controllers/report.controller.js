@@ -1,14 +1,17 @@
 import admin from "firebase-admin";
-import serviceAccount from "../serviceAccountKey.json";
+import serviceAccount from "../serviceAccountKey.json" assert { type: "json" }
 import dotenv from "dotenv";
 import { Configuration, OpenAIApi } from "openai";
 import crypto from "crypto"
-import axios from "axios";
+
 
 dotenv.config()
 console.log(process.env.API_KEY)
 const openai = new OpenAIApi(
-  new Configuration({ apiKey: process.env.API_KEY })
+  new Configuration({
+    apiKey: process.env.API_KEY,
+    organization: process.env.ORGANIZATION_KEY
+  })
 )
 if (!admin.apps.length) {
   admin.initializeApp({
@@ -27,16 +30,45 @@ function GenerateUASignature(appId, signatureNonce, serverSecret, timeStamp) {
 }
 
 export const ReportController = {
-  sendMessage: async (req, res) => {
+  savePreset: async (req, res) => {
     try {
-
+      const data = req.body
+      if (!data)
+        return res.status(201).json({
+          success: false,
+          message: "Data not found",
+        });
+      if (!data.roomID)
+        return res.status(201).json({
+          success: false,
+          message: "Livestream not found",
+        });
+      const preset = [
+        { role: "user", content: `you are an assistant of a sale livestreaming person. His/her name is ${data.legalname}, he/she is ${data.age} and he/she is a ${data.nationality}, ${data.info}. Can you remember this and tell back when asked ?` },
+        { role: "assistant", content: "Yes, I can" },
+        { role: "user", content: `alright very nice ! today he will be selling : ${data.products}. Can you remember this list and answer when asked ?` },
+        { role: "assistant", content: "Yes, I can remember the list of products" },
+      ]
+      console.log(preset)
+      await db.collection('Presets').doc(data.roomID).set({
+        roomID: data.roomID,
+        preset: preset
+      })
+      return res.status(200).json({
+        success: true,
+        message: "Preset saved"
+      });
     } catch (error) {
-
+      return res.status(501).json({
+        success: false,
+        message: error,
+      });
     }
   },
   requestAI: async (req, res) => {
     try {
       const data = req.body
+      console.log(data)
       if (!data)
         return res.status(201).json({
           success: false,
@@ -47,19 +79,44 @@ export const ReportController = {
           success: false,
           message: "Message not found",
         });
-      await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).set(data)
+      const chat = await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).get();
+      const chatData = chat.data()
+      if (chatData) {
+        await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).set({
+          ...data, history: []
+        })
+      } else {
+        await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).set(
+          { ...data, response: "" },
+          { merge: true }
+        )
+      }
+      console.log(chatData)
+      const preset = await db.collection("Presets").doc(data.roomID).get();
       const response = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: data.message }]
+        messages: [
+          {
+            role: "system", content: "You are LivestreamGPT, an AI to help sale-livestreamer communicate with their customer"
+          },
+          ...preset.data().preset,
+          ...chatData.history,
+          { role: "user", content: data.message }
+        ]
       })
-      if (!response)
+      if (!response) {
         return res.status(201).json({
           success: false,
           message: "Cant get data from openai",
         });
+      }
+      chatData.history.push({ role: "user", content: data.message })
+      chatData.history.push({ role: "assistant", content: response.data.choices[0].message.content })
+      console.log(chatData)
       await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).set(
         {
-          response: response.data.choices[0].message.content
+          response: response.data.choices[0].message.content,
+          history: chatData.history
         },
         { merge: true }
       );

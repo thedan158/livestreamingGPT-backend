@@ -1,5 +1,5 @@
 import admin from "firebase-admin";
-import serviceAccount from "../serviceAccountKey.json";
+import serviceAccount from "../serviceAccountKey.json" assert { type: "json" };
 import validator from "validator";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
