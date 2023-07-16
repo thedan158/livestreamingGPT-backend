@@ -27,6 +27,8 @@
     "jsonwebtoken": "^8.5.1",
     "nodemon": "^2.0.16",
     "openai": "^3.2.1",
+    "qs": "^6.11.2",
+    "stripe": "^12.13.0",
     "swagger-jsdoc": "^6.2.1",
     "swagger-ui-express": "^4.4.0",
     "validator": "^13.7.0"

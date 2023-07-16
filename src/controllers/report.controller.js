@@ -1,11 +1,10 @@
 import admin from "firebase-admin";
 import serviceAccount from "../serviceAccountKey.json" assert { type: "json" }
-import dotenv from "dotenv";
 import { Configuration, OpenAIApi } from "openai";
 import crypto from "crypto"
 
 
-dotenv.config()
+
 console.log(process.env.API_KEY)
 const openai = new OpenAIApi(
   new Configuration({
@@ -68,7 +67,7 @@ export const ReportController = {
   requestAI: async (req, res) => {
     try {
       const data = req.body
-      console.log(data)
+      console.log('request ai', data)
       if (!data)
         return res.status(201).json({
           success: false,
@@ -81,28 +80,37 @@ export const ReportController = {
         });
       const chat = await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).get();
       const chatData = chat.data()
+      console.log('chatData history', chatData)
       if (chatData) {
         await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).set({
           ...data, history: []
         })
       } else {
         await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).set(
-          { ...data, response: "" },
+          { ...data, response: "", history: [] },
           { merge: true }
         )
       }
-      console.log(chatData)
+      console.log('chatData history', chat.data())
       const preset = await db.collection("Presets").doc(data.roomID).get();
+      const msgPreset = preset.data().preset
+
+      let messages = [
+        {
+          role: "system",
+          content: "You are LivestreamGPT, an AI to help sale-livestreamer communicate with their customer"
+        },
+        ...msgPreset
+      ];
+
+      if (chatData && chatData.history) {
+        messages = messages.concat(chatData.history);
+      }
+      messages.push({ role: "user", content: data.message });
+
       const response = await openai.createChatCompletion({
         model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system", content: "You are LivestreamGPT, an AI to help sale-livestreamer communicate with their customer"
-          },
-          ...preset.data().preset,
-          ...chatData.history,
-          { role: "user", content: data.message }
-        ]
+        messages: messages
       })
       if (!response) {
         return res.status(201).json({
@@ -110,13 +118,15 @@ export const ReportController = {
           message: "Cant get data from openai",
         });
       }
-      chatData.history.push({ role: "user", content: data.message })
-      chatData.history.push({ role: "assistant", content: response.data.choices[0].message.content })
+      console.log('response', response.data.choices[0].message)
+      let newChatdata = chatData ? chatData.history : []
+      newChatdata.push({ role: "user", content: data.message })
+      newChatdata.push({ role: "assistant", content: response.data.choices[0].message.content })
       console.log(chatData)
       await db.collection('Chats').doc(data.roomID + '_' + data.fromUser.userName).set(
         {
           response: response.data.choices[0].message.content,
-          history: chatData.history
+          history: newChatdata
         },
         { merge: true }
       );

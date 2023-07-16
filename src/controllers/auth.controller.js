@@ -3,6 +3,12 @@ import serviceAccount from "../serviceAccountKey.json" assert { type: "json" };
 import validator from "validator";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import stripePackage from "stripe";
+import QueryString from "qs";
+import axios from "axios";
+
+
+
 
 //*Region connect to database
 if (!admin.apps.length) {
@@ -357,6 +363,35 @@ export const AuthController = {
         });
       }
 
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error,
+      });
+    }
+  },
+  paymentProcess: async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const data = QueryString.stringify({
+        amount: amount,
+        currency: 'usd',
+      });
+      const config = {
+        method: 'post',
+        url: 'https://api.stripe.com/v1/payment_intents',
+        headers: {
+          Authorization: `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        data: data,
+      };
+      const response = await axios(config);
+      console.log(JSON.stringify(response.data));
+      res.status(200).json({
+        success: true,
+        client_secret: response.data.client_secret,
+      });
     } catch (error) {
       res.status(500).json({
         success: false,

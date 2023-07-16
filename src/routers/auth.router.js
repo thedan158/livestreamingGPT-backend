@@ -10,6 +10,7 @@ router.post("/changePassword", AuthController.changePassword);
 router.get("/getUser/:username", AuthController.getUserProfile);
 router.post("/searchProfile", AuthController.searchProfile);
 router.post('/updateUser/:username', AuthController.updateInfo);
+router.post('/payment/process', AuthController.paymentProcess)
 
 
 
